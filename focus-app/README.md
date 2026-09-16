@@ -6,14 +6,16 @@ A Today-first personal execution system built around one idea: **reduce cognitiv
 
 ## Current MVP
 
-- React + Vite frontend
+- React 19 + Vite
 - Today-first home screen
 - Commitments vs. suggestions mental model
+- Google OAuth wiring through Supabase Auth
+- Persistent Today tasks for signed-in users
 - Add and complete today's actions
-- Focus-mode entry point
+- Focus mode with a 25-minute timer
+- Focus sessions persisted to PostgreSQL
 - Time/energy-aware `What now?` interaction
-- Optional Supabase client wiring
-- Local mode works without backend credentials
+- Local fallback when Supabase credentials are absent
 
 ## Product loop
 
@@ -21,22 +23,25 @@ A Today-first personal execution system built around one idea: **reduce cognitiv
 
 AI is intentionally secondary. It interprets, suggests and helps re-plan; the user decides.
 
-## Supabase
+## Supabase architecture
 
-The app uses Supabase for authentication and PostgreSQL persistence. The initial schema is designed around:
+The MVP uses PostgreSQL + Supabase Auth with these core tables:
 
-- `profiles`
-- `inbox_items`
-- `goals`
-- `projects`
-- `resources`
-- `tasks`
-- `daily_plans`
-- `daily_plan_tasks`
-- `focus_sessions`
-- `daily_reviews`
+- `goals` — outcomes the user cares about
+- `projects` — larger bodies of work attached to goals
+- `resources` — courses, docs, books, videos, projects, etc.
+- `tasks` — concrete actions and Today commitments
+- `brain_dumps` — raw thoughts waiting to be processed
+- `daily_plans` — available time, energy and notes for a day
+- `focus_sessions` — actual focus history
 
-Row Level Security is enabled so records are scoped to the authenticated user.
+Every table has a `user_id` foreign key to `auth.users`, and Row Level Security is enabled. Policies use the authenticated user's ID so one account cannot read or modify another account's rows.
+
+The canonical schema is versioned at `supabase/migrations/20260916164006_create_focus_app_core.sql`. The live Supabase project also has a follow-up hardening migration that optimizes RLS evaluation and adds foreign-key indexes.
+
+### GraphQL advisor warnings
+
+Supabase's security advisor may report these tables as exposed in the GraphQL schema. The app is built around the normal Supabase client/PostgREST path, not GraphQL, and the tables remain protected by RLS. Removing `SELECT` from `authenticated` would interfere with the app's normal data access, so these GraphQL visibility warnings are intentionally documented rather than masking them by breaking the MVP.
 
 ### Environment
 
@@ -87,7 +92,7 @@ Adding an item to Today is a commitment for that day. Suggestions are deliberate
 
 ### Focus
 
-Focus mode protects attention around one action. The timer is a tool, not a productivity ideology.
+Focus mode protects attention around one action. The timer is a tool, not a productivity ideology. Completed focus sessions record actual time and outcome.
 
 ### Review / replan
 
@@ -95,11 +100,11 @@ The system should record what actually happened and treat interruptions, bad est
 
 ## Roadmap
 
-1. Connect auth and persistent Today data
+1. Connect auth and persistent Today data ✅
 2. Build Inbox / brain dump flow
 3. Build Goals and Projects
 4. Add resources and progress tracking
-5. Build Focus sessions and daily review
+5. Expand Focus sessions and daily review
 6. Add emergency-task replanning
 7. Add optional AI interpretation and re-planning
 8. Deploy and use the app continuously before adding complexity
